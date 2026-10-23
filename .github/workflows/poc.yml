@@ -8,7 +8,9 @@ jobs:
   poc:
     runs-on: windows-latest
     steps:
-      - name: Checkout the B2 CLI at the pinned commit
+      - name: Checkout this PoC repo (brings tests/ into the workspace root)
+        uses: actions/checkout@v4
+      - name: Checkout the B2 CLI at the pinned commit (into cli/)
         uses: actions/checkout@v4
         with:
           repository: Backblaze/B2_Command_Line_Tool
@@ -35,12 +37,13 @@ jobs:
         run: pytest test/unit/utils/test_filesystem_drive_relative.py -v
       - name: STEP 2 — end-to-end download writes above the chosen directory (expect 1 FAIL)
         working-directory: cli
+        shell: bash
         continue-on-error: true
-        run: pytest test/unit/console_tool/test_download_drive_relative.py -v | tee ../step2.txt
+        run: pytest test/unit/console_tool/test_download_drive_relative.py -v 2>&1 | tee ../step2.txt
       - name: Show the decisive line (file written OUTSIDE the destination)
         shell: bash
-        run: grep -i "written outside the destination" step2.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: b2-poc-logs
-          path: step2.txt
+        run: |
+          echo "---- STEP 2 log ----"
+          cat step2.txt
+          echo "---- decisive line ----"
+          grep -i "written outside the destination" step2.txt
