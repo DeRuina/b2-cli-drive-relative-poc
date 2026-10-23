@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install the CLI + test deps
+      - name: Install the CLI + its test dependency group (tenacity, pytest, xdist...)
         working-directory: cli
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install pytest
+          pip install --group test || pip install "pytest>=9.0.3,<10" "tenacity>=9.1.4,<10" "pytest-xdist>=3.8.0,<4" "pytest-forked>=1.6.0,<2" "more-itertools>=11.0.2,<12"
       - name: Copy the two PoC tests into the checkout
         shell: bash
         run: |
