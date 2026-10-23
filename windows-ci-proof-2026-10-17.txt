@@ -1,0 +1,25 @@
+Windows proof — B2 CLI drive-relative download escape
+Source: GitHub Actions, windows-latest runner (Microsoft Windows Server 2025, 10.0.26100), 2026-10-17.
+Repo CLI: Backblaze/B2_Command_Line_Tool @ 04697197e528df954568fb53cbc10bfd319b8437 (2026-10-08).
+Installed: b2 5.0.1.dev39+g04697197e, b2sdk 2.13.1, Python 3.12.10. No B2 account, no network (in-process raw_simulator).
+
+== Step 1: SDK validator (test_filesystem_drive_relative.py) ==
+test_drive_with_separator_is_rejected[C:/file.txt]  PASSED        # control: C:/ and C:\ are rejected
+test_drive_with_separator_is_rejected[C:\file.txt]  PASSED        # control
+test_drive_relative_name_passes_validator[C:file.txt]            FAILED: DID NOT RAISE ValueError
+test_drive_relative_name_passes_validator[C:../file.txt]         FAILED: DID NOT RAISE ValueError
+test_drive_relative_name_passes_validator[C:../AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/evil.bat] FAILED: DID NOT RAISE ValueError
+3 failed, 3 passed
+# The 3 FAILs are the proof: validate_b2_file_name_as_path accepts drive-relative names (C:, C:..) that have no separator after the drive letter.
+
+== Step 2: CLI end-to-end (test_download_drive_relative.py, Windows-only) ==
+test_download_file_by_uri__directory_rejects_drive_relative_name[C:../escape.txt]  FAILED
+AssertionError: object written outside the destination:
+  C:\Users\runneradmin\AppData\Local\Temp\pytest-of-runneradmin\pytest-0\test_download_file_by_uri__dir0\escape.txt
+1 failed
+# The assertion "nothing written outside output_directory" FAILED, i.e. the object named "C:../escape.txt"
+# was downloaded to escape.txt ONE LEVEL ABOVE the chosen downloads/ directory. `b2 file download` named the
+# local file after the (attacker-chosen) object name; on Windows a drive-relative name resolves above the target.
+# The Startup-folder variant shows the write can land in an auto-run location.
+
+Full raw run log retained by Dean (GitHub Actions run, 2026-10-17 12:34 UTC).

@@ -1,0 +1,46 @@
+# End-to-end Windows proof for the B2 CLI drive-relative download escape.
+# Runs on GitHub Actions windows-latest (Windows Server 2025) — no local
+# Windows box needed. Push this repo to GitHub, or use "Run workflow", and read
+# the job log + the uploaded artifact. The CLI commit is pinned.
+name: b2-cli drive-relative escape PoC
+on: [push, workflow_dispatch]
+jobs:
+  poc:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout the B2 CLI at the pinned commit
+        uses: actions/checkout@v4
+        with:
+          repository: Backblaze/B2_Command_Line_Tool
+          ref: 04697197e528df954568fb53cbc10bfd319b8437
+          path: cli
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the CLI + test deps
+        working-directory: cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+      - name: Copy the two PoC tests into the checkout
+        shell: bash
+        run: |
+          mkdir -p cli/test/unit/utils cli/test/unit/console_tool
+          cp tests/test_filesystem_drive_relative.py   cli/test/unit/utils/
+          cp tests/test_download_drive_relative.py      cli/test/unit/console_tool/
+      - name: STEP 1 — validator accepts drive-relative names (expect 3 FAIL)
+        working-directory: cli
+        continue-on-error: true
+        run: pytest test/unit/utils/test_filesystem_drive_relative.py -v
+      - name: STEP 2 — end-to-end download writes above the chosen directory (expect 1 FAIL)
+        working-directory: cli
+        continue-on-error: true
+        run: pytest test/unit/console_tool/test_download_drive_relative.py -v | tee ../step2.txt
+      - name: Show the decisive line (file written OUTSIDE the destination)
+        shell: bash
+        run: grep -i "written outside the destination" step2.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b2-poc-logs
+          path: step2.txt
